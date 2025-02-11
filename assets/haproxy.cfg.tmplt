@@ -1,0 +1,34 @@
+global
+  log stdout format raw local0
+
+defaults
+  log global
+  mode tcp
+  option tcplog
+  timeout connect 5s
+  timeout client 1m
+  timeout server 1m
+
+resolvers vpcdns
+ nameserver dns2 ${resolver}:53
+ hold valid 10s
+
+%{ for proxy in proxies ~}
+
+frontend proxy_fe_${proxy.name}
+  bind *:${proxy.listener_port}
+  default_backend proxy_be_${proxy.name}
+
+backend proxy_be_${proxy.name}
+  server target ${proxy.target} check resolvers vpcdns resolve-prefer ipv4
+
+%{ endfor ~}
+
+frontend healthcheck_fe
+  bind *:8080
+  mode http
+  default_backend healthcheck_be
+
+backend healthcheck_be
+  mode http
+  http-request return status 200 content-type text/plain lf-string "ok"
