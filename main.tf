@@ -256,13 +256,17 @@ resource "aws_iam_role" "this" {
 }
 
 resource "aws_iam_role_policy_attachment" "this" {
-  for_each = toset(module.this.enabled ? [
-    "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
-    resource.aws_iam_policy.this[0].arn
-  ] : [])
+  count = module.this.enabled ? 1 : 0
 
   role       = resource.aws_iam_role.this[0].name
-  policy_arn = each.key
+  policy_arn = resource.aws_iam_policy.this[0].arn
+}
+
+resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
+  count = module.this.enabled ? 1 : 0
+
+  role       = resource.aws_iam_role.this[0].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_policy" "this" {
