@@ -26,8 +26,7 @@ module "network_protocol_proxy" {
   name                   = "database-proxy"
   vpc_id                 = "vpc-1234567890abcdef"
   vpc_public_subnet_ids  = ["subnet-1234abcd", "subnet-5678efgh"]
-  vpc_private_subnet_ids = ["subnet-1234abcd", "subnet-5678efgh"]
-  vpc_pr
+  vpc_private_subnet_ids = ["subnet-4321abcd", "subnet-8765efgh"]
 
   proxies = {
     default = {
