@@ -27,6 +27,24 @@ variable "capacity" {
   default     = {}
 }
 
+variable "instance_types" {
+  type = list(object({
+    type   = string
+    weight = optional(number, 1)
+  }))
+  description = "List of instance types and their weighted capacity to be used."
+  default     = [{ type = "t3.nano" }, { type = "t3a.nano" }, { type = "t3.micro" }, { type = "t3a.micro" }]
+}
+
+variable "spot" {
+  type = object({
+    enabled             = optional(bool, true)
+    allocation_strategy = optional(string, "capacity-optimized")
+  })
+  description = "Configuration of spot instances"
+  default     = {}
+}
+
 variable "logs_bucket_name" {
   type        = string
   description = "S3 bucket for storing logs."
@@ -43,6 +61,12 @@ variable "ssm_sessions" {
 }
 
 # --------------------------------------------------------------- networking ---
+
+variable "key_name" {
+  type        = string
+  description = "Name of existing SSH key to be assigned to instances."
+  default     = ""
+}
 
 variable "public_accessible" {
   type        = bool
