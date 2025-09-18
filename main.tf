@@ -40,7 +40,7 @@ module "proxy" {
   image_id                = data.aws_ssm_parameter.linux_ami.value
   instance_type           = "t3.nano"
   health_check_type       = "ELB"
-  user_data_base64        = base64encode(module.this.enabled ? data.template_cloudinit_config.this[0].rendered : "")
+  user_data_base64        = base64encode(module.this.enabled ? data.cloudinit_config.this[0].rendered : "")
   force_delete            = true
   disable_api_termination = false
   update_default_version  = true
@@ -86,7 +86,7 @@ module "proxy" {
   context = module.this.context
 }
 
-data "template_cloudinit_config" "this" {
+data "cloudinit_config" "this" {
   count = module.this.enabled ? 1 : 0
 
   gzip          = true
