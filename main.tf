@@ -35,7 +35,7 @@ data "aws_partition" "current" {}
 
 module "proxy" {
   source  = "cloudposse/ec2-autoscale-group/aws"
-  version = "0.41.0"
+  version = "0.41.1"
 
   image_id                = data.aws_ssm_parameter.linux_ami.value
   instance_type           = "t3.nano"
