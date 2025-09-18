@@ -1,4 +1,6 @@
 locals {
+  aws_partition = data.aws_partition.current.partition
+
   vpc_dns_resolver       = module.this.enabled ? cidrhost(data.aws_vpc.lookup[0].cidr_block, 2) : "10.0.0.2"
   proxies                = { for k, v in var.proxies : k => merge(v, { name = k }) }
   proxies_port_range     = [local.proxies.default.listener_port, local.proxies.default.listener_port]
@@ -27,16 +29,18 @@ locals {
   }
 }
 
+data "aws_partition" "current" {}
+
 # ================================================================== service ===
 
 module "proxy" {
   source  = "cloudposse/ec2-autoscale-group/aws"
-  version = "0.41.0"
+  version = "0.41.1"
 
   image_id                = data.aws_ssm_parameter.linux_ami.value
   instance_type           = "t3.nano"
   health_check_type       = "ELB"
-  user_data_base64        = base64encode(module.this.enabled ? data.template_cloudinit_config.this[0].rendered : "")
+  user_data_base64        = base64encode(module.this.enabled ? data.cloudinit_config.this[0].rendered : "")
   force_delete            = true
   disable_api_termination = false
   update_default_version  = true
@@ -50,39 +54,27 @@ module "proxy" {
   }
 
   iam_instance_profile_name     = module.this.enabled ? resource.aws_iam_instance_profile.this[0].id : null
-  key_name                      = ""
+  key_name                      = var.key_name
   metadata_http_tokens_required = true
 
   autoscaling_policies_enabled      = false
   desired_capacity                  = local.capacity.desired
-  min_size                          = var.capacity.min
-  max_size                          = var.capacity.max
+  min_size                          = local.capacity.min
+  max_size                          = local.capacity.max
   max_instance_lifetime             = "604800"
   wait_for_capacity_timeout         = "300s"
   tag_specifications_resource_types = ["instance", "volume", "spot-instances-request"]
 
   mixed_instances_policy = {
     instances_distribution = {
-      on_demand_base_capacity                  = 0
-      on_demand_percentage_above_base_capacity = 0
+      on_demand_base_capacity                  = var.spot.enabled ? 0 : 100
+      on_demand_percentage_above_base_capacity = var.spot.enabled ? 0 : 100
       on_demand_allocation_strategy            = "prioritized"
-      spot_allocation_strategy                 = "capacity-optimized"
+      spot_allocation_strategy                 = var.spot.allocation_strategy
       spot_instance_pools                      = 0
       spot_max_price                           = ""
     }
-    override = [{
-      instance_type     = "t3.nano"
-      weighted_capacity = 1
-      }, {
-      instance_type     = "t3a.nano"
-      weighted_capacity = 1
-      }, {
-      instance_type     = "t3.micro"
-      weighted_capacity = 1
-      }, {
-      instance_type     = "t3a.micro"
-      weighted_capacity = 1
-    }]
+    override = [for x in var.instance_types : { instance_type = x.type, weighted_capacity = x.weight }]
   }
 
   associate_public_ip_address = false
@@ -94,7 +86,7 @@ module "proxy" {
   context = module.this.context
 }
 
-data "template_cloudinit_config" "this" {
+data "cloudinit_config" "this" {
   count = module.this.enabled ? 1 : 0
 
   gzip          = true
@@ -266,7 +258,7 @@ resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
   count = module.this.enabled ? 1 : 0
 
   role       = resource.aws_iam_role.this[0].name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  policy_arn = "arn:${local.aws_partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_policy" "this" {
@@ -307,8 +299,8 @@ data "aws_iam_policy_document" "this" {
         "s3:GetBucketLocation",
       ]
       resources = [
-        "arn:aws:s3:::${var.ssm_sessions.logs_bucket_name}",
-        "arn:aws:s3:::${var.ssm_sessions.logs_bucket_name}/*"
+        "arn:${local.aws_partition}:s3:::${var.ssm_sessions.logs_bucket_name}",
+        "arn:${local.aws_partition}:s3:::${var.ssm_sessions.logs_bucket_name}/*"
       ]
     }
   }
