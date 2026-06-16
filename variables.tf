@@ -27,6 +27,17 @@ variable "capacity" {
   default     = {}
 }
 
+variable "ami" {
+  type        = string
+  description = "AMI ID to launch instances with. Accepts an explicit `ami-*` ID or a `resolve:ssm:*` reference that EC2 resolves at instance launch time. Defaults to the latest Amazon Linux 2023 AMI resolved at apply time when empty."
+  default     = ""
+
+  validation {
+    condition     = var.ami == "" || startswith(var.ami, "ami-") || startswith(var.ami, "resolve:")
+    error_message = "The ami value must be empty, an explicit `ami-*` ID, or a `resolve:*` reference."
+  }
+}
+
 variable "instance_types" {
   type = list(object({
     type   = string
