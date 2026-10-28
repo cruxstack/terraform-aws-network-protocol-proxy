@@ -27,6 +27,8 @@ locals {
     enabled          = var.ssm_sessions.enabled
     logs_bucket_name = try(coalesce(var.ssm_sessions.logs_bucket_name, var.logs_bucket_name), "")
   }
+
+  image_id = var.ami != "" ? var.ami : data.aws_ssm_parameter.linux_ami.value
 }
 
 data "aws_partition" "current" {}
@@ -37,7 +39,7 @@ module "proxy" {
   source  = "cloudposse/ec2-autoscale-group/aws"
   version = "0.41.1"
 
-  image_id                = data.aws_ssm_parameter.linux_ami.value
+  image_id                = local.image_id
   instance_type           = "t3.nano"
   health_check_type       = "ELB"
   user_data_base64        = base64encode(module.this.enabled ? data.cloudinit_config.this[0].rendered : "")
